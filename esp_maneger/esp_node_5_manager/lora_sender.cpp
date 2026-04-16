@@ -1,66 +1,49 @@
 #include "lora_sender.h"
 
-LoraSender::LoraSender(int ssPin, int rstPin, int dio0Pin) {
-    _ssPin = ssPin;
-    _rstPin = rstPin;
-    _dio0Pin = dio0Pin;
-    _initialized = false;
-}
+LoraSender::LoraSender(int ssPin, int rstPin, int dio0Pin)
+    : _ssPin(ssPin), _rstPin(rstPin), _dio0Pin(dio0Pin), _initialized(false) {}
 
 bool LoraSender::begin(long frequency) {
-    DEBUG_PRINTF("[LORA] Inicializando na frequência %.0f MHz...\n", frequency / 1000000.0);
+    DEBUG_PRINTF("[LORA] Inicializando em %.0f MHz...\n", frequency / 1000000.0);
 
-    // Configura os pinos
     LoRa.setPins(_ssPin, _rstPin, _dio0Pin);
 
-    // Inicializa o LoRa
     if (!LoRa.begin(frequency)) {
         DEBUG_PRINTLN("[LORA] ❌ Falha na inicialização!");
         _initialized = false;
         return false;
     }
 
-    // Configurações opcionais para melhor alcance
-    LoRa.setSpreadingFactor(12);      // SF12 = maior alcance
-    LoRa.setCodingRate4(8);           // CR4/8
-    LoRa.setTxPower(20);              // Potência máxima (20 dBm)
-    LoRa.setSignalBandwidth(125E3);   // 125 kHz
+    LoRa.setSpreadingFactor(12);
+    LoRa.setCodingRate4(8);
+    LoRa.setTxPower(20);
+    LoRa.setSignalBandwidth(125E3);
 
     _initialized = true;
     DEBUG_PRINTLN("[LORA] ✅ Inicializado com sucesso!");
-
     return true;
 }
 
 bool LoraSender::sendSensorData(const SensorData* data) {
-    if (!_initialized) {
-        DEBUG_PRINTLN("[LORA] ❌ Módulo não inicializado");
+    if (!_initialized || data == nullptr) {
+        DEBUG_PRINTLN("[LORA] ❌ Módulo não inicializado ou dados nulos");
         return false;
     }
 
     DEBUG_PRINTF("[LORA] Enviando dados do nó %d...\n", data->node_id);
 
-    // Inicia o pacote
     LoRa.beginPacket();
+    LoRa.write((const uint8_t*)data, sizeof(SensorData));
 
-    // Escreve os dados byte a byte
-    LoRa.write((uint8_t*)data, sizeof(SensorData));
-
-    // Finaliza e envia
-    size_t packetSize = LoRa.endPacket();
-
-    if (packetSize == 0) {
-        DEBUG_PRINTLN("[LORA] ❌ Falha no envio");
-        return false;
-    }
-
-    DEBUG_PRINTF("[LORA] ✅ Enviado %d bytes\n", packetSize);
-    return true;
+    // CORRIGIDO: endPacket() retorna 1 (sucesso) ou 0 (falha)
+    bool ok = (LoRa.endPacket() == 1);
+    DEBUG_PRINTLN(ok ? "[LORA] ✅ Enviado" : "[LORA] ❌ Falha no envio");
+    return ok;
 }
 
 bool LoraSender::sendMultiSensorData(const SensorData* dataArray, int count) {
-    if (!_initialized) {
-        DEBUG_PRINTLN("[LORA] ❌ Módulo não inicializado");
+    if (!_initialized || dataArray == nullptr) {
+        DEBUG_PRINTLN("[LORA] ❌ Módulo não inicializado ou dados nulos");
         return false;
     }
 
@@ -69,37 +52,34 @@ bool LoraSender::sendMultiSensorData(const SensorData* dataArray, int count) {
         return false;
     }
 
-    DEBUG_PRINTF("[LORA] Enviando dados de %d sensores...\n", count);
-
-    // Inicia o pacote
-    LoRa.beginPacket();
-
-    // Primeiro envia o número de sensores
-    LoRa.write((uint8_t)count);
-
-    // Depois envia os dados de cada sensor
-    for (int i = 0; i < count; i++) {
-        LoRa.write((uint8_t*)&dataArray[i], sizeof(SensorData));
-    }
-
-    // Finaliza e envia
-    size_t packetSize = LoRa.endPacket();
-
-    if (packetSize == 0) {
-        DEBUG_PRINTLN("[LORA] ❌ Falha no envio");
+    // ADICIONADO: verificação de tamanho antes de enviar
+    size_t totalSize = 1 + (count * sizeof(SensorData)); // 1 byte count + dados
+    if (totalSize > LORA_MAX_PAYLOAD) {
+        DEBUG_PRINTF("[LORA] ❌ Payload muito grande: %zu bytes (max %zu)\n",
+                     totalSize, LORA_MAX_PAYLOAD);
         return false;
     }
 
-    DEBUG_PRINTF("[LORA] ✅ Enviado %d bytes\n", packetSize);
-    return true;
+    DEBUG_PRINTF("[LORA] Enviando %d sensores (%zu bytes)...\n", count, totalSize);
+
+    LoRa.beginPacket();
+    LoRa.write((uint8_t)count);
+    for (int i = 0; i < count; i++) {
+        LoRa.write((const uint8_t*)&dataArray[i], sizeof(SensorData));
+    }
+
+    bool ok = (LoRa.endPacket() == 1);
+    DEBUG_PRINTLN(ok ? "[LORA] ✅ Enviado com sucesso" : "[LORA] ❌ Falha no envio");
+    return ok;
 }
 
-bool LoraSender::isActive() {
+bool LoraSender::isActive() const {
     return _initialized;
 }
 
 String LoraSender::getChipVersion() {
-    // Tenta ler um registrador para identificar o chip
-    uint8_t version = LoRa.readRegister(0x42);  // Registro de versão do SX1276
+    // CORRIGIDO: protege contra chamada antes de begin()
+    if (!_initialized) return "N/A";
+    uint8_t version = LoRa.readRegister(0x42);
     return String(version, HEX);
 }
