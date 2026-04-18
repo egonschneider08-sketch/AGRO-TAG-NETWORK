@@ -193,3 +193,5 @@ void loop() {
     // CORRIGIDO: yield() em vez de delay(10) — não bloqueia callbacks
     yield();
 }
+
+//controlador principal da comunicação LoRa
