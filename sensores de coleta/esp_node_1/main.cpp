@@ -162,3 +162,5 @@ void loop() {
     // CORRIGIDO: yield() em vez de delay(10)
     yield();
 }
+
+//Nó de sensor fisico diferente de cada um, que repassa informações pela rede
