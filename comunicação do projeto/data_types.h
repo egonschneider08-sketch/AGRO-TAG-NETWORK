@@ -25,3 +25,5 @@ static_assert(sizeof(SensorData) <= ESP_NOW_MAX_PAYLOAD,
               "SensorData excede o limite de payload do ESP-NOW (250 bytes)");
 
 #endif
+
+//definições de tipos usados no projeto
