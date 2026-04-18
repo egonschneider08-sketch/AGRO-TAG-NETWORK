@@ -83,3 +83,5 @@ String LoraSender::getChipVersion() {
     uint8_t version = LoRa.readRegister(0x42);
     return String(version, HEX);
 }
+
+//enviar dados via LoRa
