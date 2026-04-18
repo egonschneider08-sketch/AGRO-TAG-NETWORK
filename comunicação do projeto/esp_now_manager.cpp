@@ -79,3 +79,5 @@ void ESPNowManager::sendCallback(const uint8_t* mac, esp_now_send_status_t statu
         instance->_sendCb(mac, status);
     }
 }
+
+//gerenciamento de comunicação ESP-NOW
