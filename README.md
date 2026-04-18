@@ -37,7 +37,7 @@ Cada nó sensor coleta os seguintes parâmetros via sensor Modbus RS485 (NPK + p
 ## 🗂️ Estrutura do Projeto
 
 ```
-agrotag-network/
+agro sustain-network/
 │
 ├── common/                    # Código compartilhado entre todos os nós
 │   ├── data_types.h           # Struct SensorData (com static_assert de tamanho)
